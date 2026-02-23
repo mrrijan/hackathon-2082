@@ -1,2 +1,6 @@
 venv/
 .env
+background.mp4
+output_video.mp4
+temp.pdf
+voiceover.mp3
