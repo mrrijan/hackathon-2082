@@ -1,38 +1,204 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>StudyBrain AI</title>
+<meta charset="UTF-8">
+<title>StudyBrain AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+body{
+    margin:0;
+    font-family: 'Inter', sans-serif;
+    background: radial-gradient(circle at top, #0f172a, #020617);
+    color:white;
+    display:flex;
+    justify-content:center;
+}
+
+.container{
+    width:900px;
+    margin-top:60px;
+}
+
+h1{
+    text-align:center;
+    font-size:48px;
+    background:linear-gradient(90deg,#38bdf8,#a78bfa);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    margin-bottom:10px;
+}
+
+.subtitle{
+    text-align:center;
+    color:#94a3b8;
+    margin-bottom:40px;
+}
+
+.card{
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    border-radius:20px;
+    padding:30px;
+    margin-bottom:25px;
+    box-shadow:0 0 40px rgba(56,189,248,0.08);
+}
+
+.upload-box{
+    border:2px dashed rgba(255,255,255,0.2);
+    padding:40px;
+    text-align:center;
+    border-radius:15px;
+    cursor:pointer;
+    transition:0.3s;
+}
+.upload-box:hover{
+    border-color:#38bdf8;
+}
+
+button{
+    margin-top:20px;
+    padding:14px 28px;
+    border:none;
+    border-radius:12px;
+    font-size:16px;
+    font-weight:600;
+    cursor:pointer;
+    background:linear-gradient(90deg,#38bdf8,#a78bfa);
+    color:white;
+    transition:0.3s;
+}
+button:hover{
+    transform:scale(1.05);
+    box-shadow:0 0 20px rgba(56,189,248,0.5);
+}
+
+.section-title{
+    font-size:20px;
+    margin-bottom:10px;
+    color:#38bdf8;
+}
+
+.loading{
+    text-align:center;
+    margin-top:20px;
+    display:none;
+}
+
+.spinner{
+    border:4px solid rgba(255,255,255,0.1);
+    border-top:4px solid #38bdf8;
+    border-radius:50%;
+    width:40px;
+    height:40px;
+    animation:spin 1s linear infinite;
+    margin:0 auto;
+}
+@keyframes spin{
+    100%{transform:rotate(360deg);}
+}
+
+video{
+    width:100%;
+    margin-top:20px;
+    border-radius:15px;
+}
+</style>
 </head>
+
 <body>
-    <h1>StudyBrain AI</h1>
-    
-    <input type="file" id="pdfInput" accept=".pdf">
-    <button onclick="uploadPDF()">Generate Study Notes</button>
-    
-    <div id="loading" style="display:none">Processing...</div>
-    <div id="result"></div>
+<div class="container">
 
-    <script>
-        async function uploadPDF() {
-            const file = document.getElementById('pdfInput').files[0];
-            if (!file) return alert('Please select a PDF');
+<h1>StudyBrain AI</h1>
+<div class="subtitle">Turn your notes into smart summaries & viral study videos</div>
 
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('result').innerHTML = '';
+<div class="card">
+    <div class="upload-box" onclick="document.getElementById('pdfInput').click()">
+        📄 Drop PDF here or click to upload
+        <input type="file" id="pdfInput" accept=".pdf" hidden>
+    </div>
 
-            const formData = new FormData();
-            formData.append('file', file);
+    <center>
+        <button onclick="uploadPDF()">Generate Smart Notes</button>
+    </center>
 
-            const response = await fetch('http://127.0.0.1:8000/process-pdf', {
-                method: 'POST',
-                body: formData
-            });
+    <div class="loading" id="loadingNotes">
+        <div class="spinner"></div>
+        <p>AI is reading your notes...</p>
+    </div>
+</div>
 
-            const data = await response.json();
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('result').innerText = data.result;
-        }
-    </script>
+<div class="card" id="notesCard" style="display:none;">
+    <div class="section-title">📚 Smart Notes</div>
+    <div id="notesResult"></div>
+
+    <center>
+        <button onclick="generateVideo()">🎬 Generate Brainrot Video</button>
+    </center>
+
+    <div class="loading" id="loadingVideo">
+        <div class="spinner"></div>
+        <p>Generating viral study video...</p>
+    </div>
+
+    <video id="videoPlayer" controls style="display:none;"></video>
+</div>
+
+</div>
+
+<script>
+let latestNotesText = "";
+
+async function uploadPDF(){
+    const file = document.getElementById('pdfInput').files[0];
+    if(!file) return alert("Upload a PDF first");
+
+    document.getElementById('loadingNotes').style.display='block';
+    document.getElementById('notesCard').style.display='none';
+
+    const formData = new FormData();
+    formData.append("file",file);
+
+    const res = await fetch("http://127.0.0.1:8000/process-pdf",{
+        method:"POST",
+        body:formData
+    });
+
+    const data = await res.json();
+
+    document.getElementById('loadingNotes').style.display='none';
+    document.getElementById('notesCard').style.display='block';
+
+    latestNotesText = data.result;
+
+    document.getElementById("notesResult").innerHTML =
+        data.result.replace(/\n/g,"<br>");
+}
+
+async function generateVideo(){
+    if(!latestNotesText) return alert("Generate notes first");
+
+    document.getElementById("loadingVideo").style.display="block";
+    document.getElementById("videoPlayer").style.display="none";
+
+    const formData = new FormData();
+    formData.append("text", latestNotesText);
+
+    const res = await fetch("http://127.0.0.1:8000/generate-video",{
+        method:"POST",
+        body:formData
+    });
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    document.getElementById("loadingVideo").style.display="none";
+    const player = document.getElementById("videoPlayer");
+    player.src = url;
+    player.style.display="block";
+}
+</script>
+
 </body>
 </html>
