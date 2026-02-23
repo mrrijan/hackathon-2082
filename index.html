@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>StudyBrain AI</title>
+</head>
+<body>
+    <h1>StudyBrain AI</h1>
+    
+    <input type="file" id="pdfInput" accept=".pdf">
+    <button onclick="uploadPDF()">Generate Study Notes</button>
+    
+    <div id="loading" style="display:none">Processing...</div>
+    <div id="result"></div>
+
+    <script>
+        async function uploadPDF() {
+            const file = document.getElementById('pdfInput').files[0];
+            if (!file) return alert('Please select a PDF');
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').innerHTML = '';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('http://127.0.0.1:8000/process-pdf', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('result').innerText = data.result;
+        }
+    </script>
+</body>
+</html>
