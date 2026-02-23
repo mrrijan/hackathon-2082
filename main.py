@@ -171,24 +171,39 @@ Notes:
     ########################################
     # STEP 4: Create TikTok popup captions
     ########################################
-    words = script.upper().split()
+    ########################################
+    # STEP 4: Create CLEAN TikTok captions
+    ########################################
+    import textwrap
 
     sentences = re.split(r'[.!?]+', script)
     sentences = [s.strip().upper() for s in sentences if s.strip()]
 
-    chunk_duration = duration / len(sentences)
-
     filters = []
-    for i, line in enumerate(sentences):
-        start = round(i * chunk_duration, 2)
-        end = round((i + 1) * chunk_duration, 2)
 
-        safe_text = line.replace(":", "").replace("'", "").replace('"', '')
+    current_time = 0
+
+    for line in sentences:
+        # WRAP TEXT to fit screen
+        wrapped = textwrap.fill(line, width=22)  # controls line width
+
+        # calculate duration based on words
+        word_count = len(line.split())
+        display_time = max(2.2, word_count * 0.32)  
+        # minimum 2.2 sec per caption
+        # longer sentence = longer display
+
+        start = round(current_time, 2)
+        end = round(current_time + display_time, 2)
+        current_time += display_time
+
+        safe_text = wrapped.replace(":", "").replace("'", "").replace('"', '')
 
         filters.append(
             f"drawtext=text='{safe_text}':"
-            f"fontcolor=white:fontsize=72:"
-            f"borderw=3:bordercolor=black:"
+            f"fontcolor=white:fontsize=64:"
+            f"line_spacing=10:"
+            f"borderw=4:bordercolor=black:"
             f"x=(w-text_w)/2:y=h-220:"
             f"enable='between(t,{start},{end})'"
         )
