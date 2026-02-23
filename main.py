@@ -168,43 +168,50 @@ Notes:
     audio_info = json.loads(probe.stdout)
     duration = float(audio_info["format"]["duration"])
 
-    ########################################
-    # STEP 4: Create TikTok popup captions
-    ########################################
+
     ########################################
     # STEP 4: Create CLEAN TikTok captions
     ########################################
+    ########################################
+    # STEP 4: PERFECT CLEAN CAPTIONS
+    ########################################
     import textwrap
 
-    sentences = re.split(r'[.!?]+', script)
-    sentences = [s.strip().upper() for s in sentences if s.strip()]
+    # Clean script properly
+    clean_script = script.replace("\n", " ").replace("\r", " ")
+    clean_script = re.sub(r'\s+', ' ', clean_script).strip()
 
+    # Split into chunks of ~6 words each (TikTok style)
+    words = clean_script.split()
+    chunks = [" ".join(words[i:i+6]) for i in range(0, len(words), 6)]
+
+    total_words = len(words)
     filters = []
-
     current_time = 0
 
-    for line in sentences:
-        # WRAP TEXT to fit screen
-        wrapped = textwrap.fill(line, width=22)  # controls line width
+    for chunk in chunks:
+        word_count = len(chunk.split())
 
-        # calculate duration based on words
-        word_count = len(line.split())
-        display_time = max(2.2, word_count * 0.32)  
-        # minimum 2.2 sec per caption
-        # longer sentence = longer display
+        # time proportional to words
+        display_time = (word_count / total_words) * duration
 
         start = round(current_time, 2)
         end = round(current_time + display_time, 2)
         current_time += display_time
 
-        safe_text = wrapped.replace(":", "").replace("'", "").replace('"', '')
-
+        # escape for ffmpeg safely
+        safe_text = chunk.upper()
+        safe_text = safe_text.replace("'", "").replace(":", "")
+        safe_text = safe_text.replace(",", "")
+        safe_text = safe_text.replace(".", "")
+        
         filters.append(
-            f"drawtext=text='{safe_text}':"
-            f"fontcolor=white:fontsize=64:"
-            f"line_spacing=10:"
-            f"borderw=4:bordercolor=black:"
-            f"x=(w-text_w)/2:y=h-220:"
+            f"drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:"
+            f"text='{safe_text}':"
+            f"fontcolor=white:fontsize=70:"
+            f"borderw=5:bordercolor=black:"
+            f"x=(w-text_w)/2:"
+            f"y=h-300:"
             f"enable='between(t,{start},{end})'"
         )
 
