@@ -1,9 +1,10 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
 import fitz
 import os
 from dotenv import load_dotenv
+from fastapi.responses import FileResponse
 import pdfplumber
 
 # OCR fallback
@@ -97,3 +98,55 @@ async def process_pdf(file: UploadFile = File(...)):
 
     # OPTIONAL: include method in response for debugging
     return {"method": method, "result": generate_study_content(text)}
+
+@app.post("/generate-video")
+async def generate_video(text: str = Form(...)):
+    
+    # Step 1: Generate brain rot script from key concepts
+    script_prompt = f"""
+    Convert these study notes into a short, punchy brain rot style script for a study video.
+    Write it like those viral TikTok study videos - energetic, engaging, simple sentences.
+    Maximum 100 words. Just the script, no extra commentary.
+    
+    Study content:
+    {text}
+    """
+    script_response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": script_prompt}]
+    )
+    script = script_response.choices[0].message.content
+
+    # Step 2: Convert script to audio using ElevenLabs
+    from elevenlabs.client import ElevenLabs
+    el_client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
+    
+    audio = el_client.text_to_speech.convert(
+        text=script,
+        voice_id="JBFqnCBsd6RMkjVDRZzb",  # free voice "George"
+        model_id="eleven_multilingual_v2",
+        output_format="mp3_44100_128"
+    )
+    
+    with open("voiceover.mp3", "wb") as f:
+        for chunk in audio:
+            f.write(chunk)
+
+    # Step 3: Stitch audio onto background video using ffmpeg
+    import subprocess
+    
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-i", "background.mp4",
+        "-i", "voiceover.mp3",
+        "-c:v", "copy",
+        "-c:a", "aac",
+        "-map", "0:v:0",
+        "-map", "1:a:0",
+        "-shortest",
+        "output_video.mp4"
+    ], check=True)
+    
+    return FileResponse("output_video.mp4", media_type="video/mp4", filename="studybrain_video.mp4")
+
+
