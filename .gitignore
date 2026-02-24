@@ -1,5 +1,15 @@
 venv/
 .env
+
+# Ignore generated videos
+*.mp4
+
+# Ignore generated audio
+*.mp3
+
+# Ignore temp files
+temp.pdf
+
 background.mp4
 output_video.mp4
 temp.pdf
