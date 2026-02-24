@@ -107,6 +107,8 @@ video{
         <input type="file" id="pdfInput" accept=".pdf" hidden>
     </div>
 
+    <p id="pdfName" style="margin-top:10px;color:#94a3b8;text-align:center;"></p>
+
     <center>
         <button style="margin-top : 10px;" onclick="uploadPDF()">Generate Smart Notes</button>
     </center>
@@ -156,7 +158,9 @@ z-index:999;
 </div>
 </div>
 
-<script>
+<!-- <script>
+
+
 let latestNotesText="";
 let currentTopic="";
 let currentVideoURL="";
@@ -349,7 +353,217 @@ function clearHistory(){
         alert("History cleared");
     }
 }
-</script>
+</script> -->
 
+
+<script>
+let latestNotesText="";
+let currentTopic="";
+let currentVideoURL="";
+let currentAudioURL="";
+let currentPDFName="";
+
+async function uploadPDF(){
+    const file=document.getElementById('pdfInput').files[0];
+    if(!file) return alert("Upload a PDF first");
+
+    currentPDFName=file.name;
+    document.getElementById("pdfName").innerText="📄 "+file.name;
+
+    // RESET SESSION DISPLAY
+    document.getElementById("notesResult").innerHTML="";
+    document.getElementById("videoPlayer").style.display="none";
+    document.getElementById("audioPlayer").style.display="none";
+    document.getElementById("quizSection").style.display="none";
+    document.getElementById("notesCard").style.display="none";
+
+    latestNotesText="";
+    currentTopic="";
+    currentVideoURL="";
+    currentAudioURL="";
+
+    document.getElementById("loadingNotes").style.display="block";
+
+    const formData=new FormData();
+    formData.append("file",file);
+
+    const res=await fetch("http://127.0.0.1:8000/process-pdf",{
+        method:"POST",
+        body:formData
+    });
+
+    const data=await res.json();
+
+    document.getElementById("loadingNotes").style.display="none";
+    document.getElementById("notesCard").style.display="block";
+
+    latestNotesText=data.result;
+    currentTopic=file.name;
+
+    document.getElementById("notesResult").innerHTML=data.result.replace(/\n/g,"<br>");
+}
+
+async function generateVideo(){
+    if(!latestNotesText) return alert("Generate notes first");
+
+    document.getElementById("quizSection").style.display="none";
+    document.getElementById("loadingVideo").style.display="block";
+
+    const formData=new FormData();
+    formData.append("text",latestNotesText);
+
+    const res=await fetch("http://127.0.0.1:8000/generate-video",{
+        method:"POST",
+        body:formData
+    });
+
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    currentVideoURL=url;
+
+    document.getElementById("loadingVideo").style.display="none";
+
+    const player=document.getElementById("videoPlayer");
+    player.src=url;
+    player.style.display="block";
+
+    player.onended=async()=>{await generateQuiz();}
+}
+
+async function generateDream(){
+    if(!latestNotesText) return alert("Generate notes first");
+
+    document.getElementById("loadingDream").style.display="block";
+
+    const formData=new FormData();
+    formData.append("text",latestNotesText);
+
+    const res=await fetch("http://127.0.0.1:8000/generate-dream-audio",{
+        method:"POST",
+        body:formData
+    });
+
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+
+    currentAudioURL=url;
+
+    document.getElementById("loadingDream").style.display="none";
+
+    const player=document.getElementById("audioPlayer");
+    player.src=url;
+    player.style.display="block";
+}
+
+async function generateQuiz(){
+    const formData=new FormData();
+    formData.append("text",latestNotesText);
+
+    const res=await fetch("http://127.0.0.1:8000/generate-quiz",{
+        method:"POST",
+        body:formData
+    });
+
+    const data=await res.json();
+    renderQuiz(data.quiz);
+}
+
+function renderQuiz(quiz){
+    const container=document.getElementById("quizSection");
+    container.innerHTML="<h3>🧠 Quick Challenge</h3>";
+    container.style.display="block";
+
+    quiz.forEach((q,index)=>{
+        container.innerHTML+=`
+        <p><strong>Q${index+1}:</strong> ${q.question}</p>
+        ${q.options.map((opt,i)=>`
+        <label>
+        <input type="radio" name="q${index}" value="${i}">
+        ${opt}
+        </label><br>
+        `).join("")}
+        <br>
+        `;
+    });
+
+    container.innerHTML+=`
+    <button onclick="submitQuiz()">Submit</button>
+    <div id="quizResult"></div>
+    `;
+
+    window.currentQuiz=quiz;
+}
+
+function submitQuiz(){
+    let score=0;
+    const quiz=window.currentQuiz;
+
+    quiz.forEach((q,index)=>{
+        const selected=document.querySelector(`input[name="q${index}"]:checked`);
+        if(selected && parseInt(selected.value)===q.answer_index){
+            score++;
+        }
+    });
+
+    const percentage=Math.round((score/quiz.length)*100);
+
+    saveToHistory(percentage);
+
+    document.getElementById("quizResult").innerHTML=
+    `<h3>Score: ${percentage}%</h3>`;
+}
+
+function saveToHistory(score){
+    const history=JSON.parse(localStorage.getItem("studyHistory"))||[];
+
+    history.unshift({
+        topic:currentTopic,
+        pdf:currentPDFName,
+        score:score,
+        video:currentVideoURL,
+        audio:currentAudioURL,
+        date:new Date().toLocaleString()
+    });
+
+    localStorage.setItem("studyHistory",JSON.stringify(history));
+}
+
+function openHistory(){
+    const history=JSON.parse(localStorage.getItem("studyHistory"))||[];
+    const container=document.getElementById("historyContent");
+
+    container.innerHTML="";
+
+    if(history.length===0){
+        container.innerHTML="<p>No history yet</p>";
+    }
+
+    history.forEach(h=>{
+        container.innerHTML+=`
+        <div style="margin-bottom:25px;border:1px solid #334155;padding:15px;border-radius:12px;">
+        <strong>📄 ${h.pdf || h.topic}</strong><br>
+        Score: ${h.score}%<br>
+        Date: ${h.date}<br>
+
+        ${h.video ? `<video src="${h.video}" controls style="width:100%;margin-top:10px;"></video>`:""}
+        ${h.audio ? `<audio src="${h.audio}" controls style="width:100%;margin-top:10px;"></audio>`:""}
+        </div>
+        `;
+    });
+
+    document.getElementById("historyModal").style.display="block";
+}
+
+function closeHistory(){
+    document.getElementById("historyModal").style.display="none";
+}
+
+function clearHistory(){
+    if(confirm("Delete history?")){
+        localStorage.removeItem("studyHistory");
+        alert("History cleared");
+    }
+}
+</script>
 </body>
 </html>
