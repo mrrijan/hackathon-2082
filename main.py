@@ -240,3 +240,73 @@ Notes:
         media_type="video/mp4",
         filename="studybrain_video.mp4"
     )
+
+@app.post("/generate-dream-audio")
+async def generate_dream_audio(text: str = Form(...)):
+
+    ########################################
+    # STEP 1: Generate calming reinforcement script
+    ########################################
+    dream_prompt = f"""
+You are a calm bedtime learning guide.
+
+Turn these study notes into a gentle, relaxing nighttime reinforcement script.
+
+Rules:
+- Calm, slow tone
+- Soft and reassuring language
+- Around 200–300 words
+- Repeat key concepts subtly
+- No hype or excitement
+- Designed to help someone relax while reviewing concepts
+
+Notes:
+{text}
+"""
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": dream_prompt}],
+    )
+
+    dream_script = response.choices[0].message.content.strip()
+
+    ########################################
+    # STEP 2: ElevenLabs soft voice
+    ########################################
+    from elevenlabs.client import ElevenLabs
+    el_client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
+
+    audio = el_client.text_to_speech.convert(
+        text=dream_script,
+        voice_id="JBFqnCBsd6RMkjVDRZzb",  # you can change later
+        model_id="eleven_multilingual_v2",
+        output_format="mp3_44100_128"
+    )
+
+    with open("dream_audio.mp3", "wb") as f:
+        for chunk in audio:
+            f.write(chunk)
+
+    ########################################
+    # STEP 3: Mix with sleep ambience
+    ########################################
+
+    subprocess.run([
+        "ffmpeg","-y",
+        "-i","dream_audio.mp3",      # voice FIRST
+        "-stream_loop","-1",
+        "-i","sleep_sound_v2.mp3",      # ambience SECOND
+        "-filter_complex",
+        "[1:a]volume=0.25[a_bg];[0:a]volume=1[a_voice];[a_voice][a_bg]amix=inputs=2:duration=shortest",
+        "-c:a","mp3",
+        "-b:a","192k",
+        "final_dream.mp3"
+    ], check=True)
+
+    ########################################
+    return FileResponse(
+        "final_dream.mp3",
+        media_type="audio/mpeg",
+        filename="studybrain_sleep_mode.mp3"
+    )
