@@ -104,6 +104,14 @@ video{
     margin-top:20px;
     border-radius:15px;
 }
+
+button:nth-child(1){
+    background:linear-gradient(90deg,#38bdf8,#6366f1);
+}
+
+button:nth-child(2){
+    background:linear-gradient(90deg,#a78bfa,#ec4899);
+}
 </style>
 </head>
 
@@ -133,16 +141,25 @@ video{
     <div class="section-title">📚 Smart Notes</div>
     <div id="notesResult"></div>
 
-    <center>
-        <button onclick="generateVideo()">🎬 Generate Brainrot Video</button>
-    </center>
+    <div style="display:flex; gap:20px; justify-content:center; margin-top:25px;">
+        <button onclick="generateVideo()">🎬 Brain Mode</button>
+        <button onclick="generateDream()">🌙 Sleep Mode</button>
+    </div>
 
+    <!-- Video Loading -->
     <div class="loading" id="loadingVideo">
         <div class="spinner"></div>
         <p>Generating viral study video...</p>
     </div>
 
+    <!-- Dream Loading -->
+    <div class="loading" id="loadingDream">
+        <div class="spinner"></div>
+        <p>Preparing your sleep learning experience...</p>
+    </div>
+
     <video id="videoPlayer" controls style="display:none;"></video>
+    <audio id="audioPlayer" controls style="display:none; width:100%; margin-top:20px;"></audio>
 </div>
 
 </div>
@@ -195,6 +212,30 @@ async function generateVideo(){
 
     document.getElementById("loadingVideo").style.display="none";
     const player = document.getElementById("videoPlayer");
+    player.src = url;
+    player.style.display="block";
+}
+
+async function generateDream(){
+    if(!latestNotesText) return alert("Generate notes first");
+
+    document.getElementById("loadingDream").style.display="block";
+    document.getElementById("audioPlayer").style.display="none";
+
+    const formData = new FormData();
+    formData.append("text", latestNotesText);
+
+    const res = await fetch("http://127.0.0.1:8000/generate-dream-audio",{
+        method:"POST",
+        body:formData
+    });
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    document.getElementById("loadingDream").style.display="none";
+
+    const player = document.getElementById("audioPlayer");
     player.src = url;
     player.style.display="block";
 }
