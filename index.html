@@ -8,16 +8,26 @@
 <style>
 body{
     margin:0;
-    font-family: 'Inter', sans-serif;
-    background: radial-gradient(circle at top, #0f172a, #020617);
+    font-family:'Inter',sans-serif;
+    background: radial-gradient(circle at top,#0f172a,#020617);
     color:white;
     display:flex;
     justify-content:center;
 }
 
+.topbar{
+    position:fixed;
+    top:15px;
+    left:20px;
+}
+
+.topbar button{
+    margin-right:10px;
+}
+
 .container{
     width:900px;
-    margin-top:60px;
+    margin-top:80px;
 }
 
 h1{
@@ -26,7 +36,6 @@ h1{
     background:linear-gradient(90deg,#38bdf8,#a78bfa);
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
-    margin-bottom:10px;
 }
 
 .subtitle{
@@ -38,11 +47,10 @@ h1{
 .card{
     background:rgba(255,255,255,0.05);
     border:1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(10px);
+    backdrop-filter:blur(10px);
     border-radius:20px;
     padding:30px;
     margin-bottom:25px;
-    box-shadow:0 0 40px rgba(56,189,248,0.08);
 }
 
 .upload-box{
@@ -51,52 +59,20 @@ h1{
     text-align:center;
     border-radius:15px;
     cursor:pointer;
-    transition:0.3s;
 }
+
 .upload-box:hover{
     border-color:#38bdf8;
 }
 
 button{
-    margin-top:20px;
-    padding:14px 28px;
+    padding:12px 24px;
     border:none;
     border-radius:12px;
-    font-size:16px;
     font-weight:600;
     cursor:pointer;
     background:linear-gradient(90deg,#38bdf8,#a78bfa);
     color:white;
-    transition:0.3s;
-}
-button:hover{
-    transform:scale(1.05);
-    box-shadow:0 0 20px rgba(56,189,248,0.5);
-}
-
-.section-title{
-    font-size:20px;
-    margin-bottom:10px;
-    color:#38bdf8;
-}
-
-.loading{
-    text-align:center;
-    margin-top:20px;
-    display:none;
-}
-
-.spinner{
-    border:4px solid rgba(255,255,255,0.1);
-    border-top:4px solid #38bdf8;
-    border-radius:50%;
-    width:40px;
-    height:40px;
-    animation:spin 1s linear infinite;
-    margin:0 auto;
-}
-@keyframes spin{
-    100%{transform:rotate(360deg);}
 }
 
 video{
@@ -105,17 +81,21 @@ video{
     border-radius:15px;
 }
 
-button:nth-child(1){
-    background:linear-gradient(90deg,#38bdf8,#6366f1);
-}
-
-button:nth-child(2){
-    background:linear-gradient(90deg,#a78bfa,#ec4899);
+.loading{
+    text-align:center;
+    display:none;
 }
 </style>
 </head>
 
 <body>
+
+<!-- TOP LEFT BUTTONS -->
+<div class="topbar">
+    <button onclick="openHistory()">📊 History</button>
+    <button onclick="clearHistory()" style="background:#ef4444;">🗑 Clear</button>
+</div>
+
 <div class="container">
 
 <h1>StudyBrain AI</h1>
@@ -128,198 +108,246 @@ button:nth-child(2){
     </div>
 
     <center>
-        <button onclick="uploadPDF()">Generate Smart Notes</button>
+        <button style="margin-top : 10px;" onclick="uploadPDF()">Generate Smart Notes</button>
     </center>
 
     <div class="loading" id="loadingNotes">
-        <div class="spinner"></div>
-        <p>AI is reading your notes...</p>
+        <p>Reading PDF...</p>
     </div>
 </div>
 
 <div class="card" id="notesCard" style="display:none;">
-    <div class="section-title">📚 Smart Notes</div>
+    <h3>📚 Smart Notes</h3>
     <div id="notesResult"></div>
 
-    <div style="display:flex; gap:20px; justify-content:center; margin-top:25px;">
+    <div style="display:flex;gap:20px;margin-top:20px;">
         <button onclick="generateVideo()">🎬 Brain Mode</button>
         <button onclick="generateDream()">🌙 Sleep Mode</button>
     </div>
 
-    <!-- Video Loading -->
-    <div class="loading" id="loadingVideo">
-        <div class="spinner"></div>
-        <p>Generating viral study video...</p>
-    </div>
-
-    <!-- Dream Loading -->
-    <div class="loading" id="loadingDream">
-        <div class="spinner"></div>
-        <p>Preparing your sleep learning experience...</p>
-    </div>
+    <div class="loading" id="loadingVideo">Generating video...</div>
+    <div class="loading" id="loadingDream">Generating sleep mode...</div>
 
     <video id="videoPlayer" controls style="display:none;"></video>
-    <audio id="audioPlayer" controls style="display:none; width:100%; margin-top:20px;"></audio>
-    <div id="quizSection" style="display:none; margin-top:30px;"></div>
+    <audio id="audioPlayer" controls style="display:none;width:100%;margin-top:20px;"></audio>
+
+    <div id="quizSection" style="display:none;margin-top:30px;"></div>
 </div>
 
+</div>
+
+<!-- HISTORY MODAL -->
+<div id="historyModal" style="
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.9);
+overflow:auto;
+padding:40px;
+z-index:999;
+">
+<div style="max-width:800px;margin:auto;background:#020617;padding:30px;border-radius:20px;">
+<h2>📚 Learning History</h2>
+<div id="historyContent"></div>
+<button onclick="closeHistory()">Close</button>
+</div>
 </div>
 
 <script>
-let latestNotesText = "";
+let latestNotesText="";
+let currentTopic="";
+let currentVideoURL="";
 
 async function uploadPDF(){
-    const file = document.getElementById('pdfInput').files[0];
+    const file=document.getElementById('pdfInput').files[0];
     if(!file) return alert("Upload a PDF first");
 
-    document.getElementById('loadingNotes').style.display='block';
-    document.getElementById('notesCard').style.display='none';
+    // CLEAR CURRENT SESSION DISPLAY
+    document.getElementById("notesResult").innerHTML="";
+    document.getElementById("videoPlayer").style.display="none";
+    document.getElementById("audioPlayer").style.display="none";
+    document.getElementById("quizSection").style.display="none";
+    document.getElementById("notesCard").style.display="none";
 
-    const formData = new FormData();
+    latestNotesText="";
+    currentTopic="";
+    currentVideoURL="";
+
+    document.getElementById("loadingNotes").style.display="block";
+
+    const formData=new FormData();
     formData.append("file",file);
 
-    const res = await fetch("http://127.0.0.1:8000/process-pdf",{
+    const res=await fetch("http://127.0.0.1:8000/process-pdf",{
         method:"POST",
         body:formData
     });
 
-    const data = await res.json();
+    const data=await res.json();
 
-    document.getElementById('loadingNotes').style.display='none';
-    document.getElementById('notesCard').style.display='block';
+    document.getElementById("loadingNotes").style.display="none";
+    document.getElementById("notesCard").style.display="block";
 
-    latestNotesText = data.result;
+    latestNotesText=data.result;
+    currentTopic=data.result.split("\n")[0].substring(0,60);
 
-    document.getElementById("notesResult").innerHTML =
-        data.result.replace(/\n/g,"<br>");
+    document.getElementById("notesResult").innerHTML=data.result.replace(/\n/g,"<br>");
 }
 
 async function generateVideo(){
     if(!latestNotesText) return alert("Generate notes first");
 
+    document.getElementById("quizSection").style.display="none";
     document.getElementById("loadingVideo").style.display="block";
-    document.getElementById("videoPlayer").style.display="none";
 
-    const formData = new FormData();
-    formData.append("text", latestNotesText);
+    const formData=new FormData();
+    formData.append("text",latestNotesText);
 
-    const res = await fetch("http://127.0.0.1:8000/generate-video",{
+    const res=await fetch("http://127.0.0.1:8000/generate-video",{
         method:"POST",
         body:formData
     });
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+
+    currentVideoURL=url;
 
     document.getElementById("loadingVideo").style.display="none";
-    const player = document.getElementById("videoPlayer");
-    player.src = url;
 
-    player.onended = async () => {
-    await generateQuiz();
-    };
-
+    const player=document.getElementById("videoPlayer");
+    player.src=url;
     player.style.display="block";
+
+    player.onended=async()=>{await generateQuiz();}
 }
 
 async function generateDream(){
     if(!latestNotesText) return alert("Generate notes first");
 
     document.getElementById("loadingDream").style.display="block";
-    document.getElementById("audioPlayer").style.display="none";
 
-    const formData = new FormData();
-    formData.append("text", latestNotesText);
+    const formData=new FormData();
+    formData.append("text",latestNotesText);
 
-    const res = await fetch("http://127.0.0.1:8000/generate-dream-audio",{
+    const res=await fetch("http://127.0.0.1:8000/generate-dream-audio",{
         method:"POST",
         body:formData
     });
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
 
     document.getElementById("loadingDream").style.display="none";
 
-    const player = document.getElementById("audioPlayer");
-    player.src = url;
+    const player=document.getElementById("audioPlayer");
+    player.src=url;
     player.style.display="block";
 }
 
 async function generateQuiz(){
-    if(!latestNotesText) return;
+    const formData=new FormData();
+    formData.append("text",latestNotesText);
 
-    const formData = new FormData();
-    formData.append("text", latestNotesText);
-
-    const res = await fetch("http://127.0.0.1:8000/generate-quiz",{
+    const res=await fetch("http://127.0.0.1:8000/generate-quiz",{
         method:"POST",
         body:formData
     });
 
-    const data = await res.json();
-
-    if(data.quiz){
-        renderQuiz(data.quiz);
-    }
+    const data=await res.json();
+    renderQuiz(data.quiz);
 }
 
 function renderQuiz(quiz){
-    const container = document.getElementById("quizSection");
-    container.innerHTML = "<h2 style='color:#38bdf8'>🧠 Quick Challenge</h2>";
-    container.style.display = "block";
+    const container=document.getElementById("quizSection");
+    container.innerHTML="<h3>🧠 Quick Challenge</h3>";
+    container.style.display="block";
 
-    quiz.forEach((q, index) => {
-        let questionHTML = `
-            <div style="margin-bottom:20px;">
-                <p><strong>Q${index+1}:</strong> ${q.question}</p>
+    quiz.forEach((q,index)=>{
+        container.innerHTML+=`
+        <p><strong>Q${index+1}:</strong> ${q.question}</p>
+        ${q.options.map((opt,i)=>`
+        <label>
+        <input type="radio" name="q${index}" value="${i}">
+        ${opt}
+        </label><br>
+        `).join("")}
+        <br>
         `;
-
-        q.options.forEach((opt, i) => {
-            questionHTML += `
-                <label style="display:block; margin-bottom:5px;">
-                    <input type="radio" name="q${index}" value="${i}">
-                    ${opt}
-                </label>
-            `;
-        });
-
-        questionHTML += "</div>";
-        container.innerHTML += questionHTML;
     });
 
-    container.innerHTML += `
-        <button onclick="submitQuiz()">Submit Answers</button>
-        <div id="quizResult" style="margin-top:20px;"></div>
+    container.innerHTML+=`
+    <button onclick="submitQuiz()">Submit</button>
+    <div id="quizResult"></div>
     `;
 
-    window.currentQuiz = quiz;
+    window.currentQuiz=quiz;
 }
 
 function submitQuiz(){
-    let score = 0;
-    const quiz = window.currentQuiz;
+    let score=0;
+    const quiz=window.currentQuiz;
 
-    quiz.forEach((q, index) => {
-        const selected = document.querySelector(`input[name="q${index}"]:checked`);
-        if(selected && parseInt(selected.value) === q.answer_index){
+    quiz.forEach((q,index)=>{
+        const selected=document.querySelector(`input[name="q${index}"]:checked`);
+        if(selected && parseInt(selected.value)===q.answer_index){
             score++;
         }
     });
 
-    const percentage = Math.round((score / quiz.length) * 100);
+    const percentage=Math.round((score/quiz.length)*100);
 
-    let message = "";
-    if(percentage >= 80){
-        message = "🔥 Brain Activated!";
-    } else if(percentage >= 50){
-        message = "👍 Not bad — review once more!";
-    } else {
-        message = "📚 Rewatch the video!";
+    saveToHistory(percentage);
+
+    document.getElementById("quizResult").innerHTML=
+    `<h3>Score: ${percentage}%</h3>`;
+}
+
+function saveToHistory(score){
+    const history=JSON.parse(localStorage.getItem("studyHistory"))||[];
+
+    history.unshift({
+        topic:currentTopic,
+        score:score,
+        video:currentVideoURL,
+        date:new Date().toLocaleString()
+    });
+
+    localStorage.setItem("studyHistory",JSON.stringify(history));
+}
+
+function openHistory(){
+    const history=JSON.parse(localStorage.getItem("studyHistory"))||[];
+    const container=document.getElementById("historyContent");
+
+    container.innerHTML="";
+
+    history.forEach(h=>{
+        container.innerHTML+=`
+        <div style="margin-bottom:20px;border:1px solid #334155;padding:15px;border-radius:12px;">
+        <strong>${h.topic}</strong><br>
+        Score: ${h.score}%<br>
+        Date: ${h.date}<br>
+        ${h.video ? `<video src="${h.video}" controls style="width:100%;margin-top:10px;"></video>` : ""}
+        </div>
+        `;
+    });
+
+    document.getElementById("historyModal").style.display="block";
+}
+
+function closeHistory(){
+    document.getElementById("historyModal").style.display="none";
+}
+
+function clearHistory(){
+    if(confirm("Delete history?")){
+        localStorage.removeItem("studyHistory");
+        alert("History cleared");
     }
-
-    document.getElementById("quizResult").innerHTML =
-        `<h3>Your Score: ${percentage}%</h3><p>${message}</p>`;
 }
 </script>
 

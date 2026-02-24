@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 import pdfplumber
 import re
+import uuid
 
 # OCR fallback
 from pdf2image import convert_from_path
@@ -220,6 +221,10 @@ Notes:
     ########################################
     # STEP 5: Render video
     ########################################
+
+    video_id = uuid.uuid4().hex
+    output_filename = f"video_{video_id}.mp4"
+
     subprocess.run([
         "ffmpeg","-y",
         "-stream_loop","-1",
@@ -231,12 +236,12 @@ Notes:
         "-c:v","libx264",
         "-c:a","aac",
         "-shortest",
-        "output_video.mp4"
+        output_filename
     ], check=True)
 
     ########################################
     return FileResponse(
-        "output_video.mp4",
+        output_filename,
         media_type="video/mp4",
         filename="studybrain_video.mp4"
     )
