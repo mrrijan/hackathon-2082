@@ -310,3 +310,50 @@ Notes:
         media_type="audio/mpeg",
         filename="studybrain_sleep_mode.mp3"
     )
+
+@app.post("/generate-quiz")
+async def generate_quiz(text: str = Form(...)):
+
+    prompt = f"""
+You are a quiz generator.
+
+Generate exactly 5 multiple choice questions from the study material.
+
+STRICT RULES:
+- Return ONLY valid JSON
+- No markdown
+- No explanations
+- No extra text
+- Format exactly like this:
+
+[
+  {{
+    "question": "Question text",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "answer_index": 0
+  }}
+]
+
+- answer_index must be 0,1,2,3
+- Exactly 4 options per question
+
+Study material:
+{text}
+"""
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    import json, re
+
+    raw = response.choices[0].message.content
+
+    try:
+        json_match = re.search(r'\[.*\]', raw, re.DOTALL)
+        quiz = json.loads(json_match.group())
+    except:
+        return {"error": "Failed to parse quiz"}
+
+    return {"quiz": quiz}
