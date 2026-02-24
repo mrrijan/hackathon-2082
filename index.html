@@ -160,6 +160,7 @@ button:nth-child(2){
 
     <video id="videoPlayer" controls style="display:none;"></video>
     <audio id="audioPlayer" controls style="display:none; width:100%; margin-top:20px;"></audio>
+    <div id="quizSection" style="display:none; margin-top:30px;"></div>
 </div>
 
 </div>
@@ -213,6 +214,11 @@ async function generateVideo(){
     document.getElementById("loadingVideo").style.display="none";
     const player = document.getElementById("videoPlayer");
     player.src = url;
+
+    player.onended = async () => {
+    await generateQuiz();
+    };
+
     player.style.display="block";
 }
 
@@ -238,6 +244,82 @@ async function generateDream(){
     const player = document.getElementById("audioPlayer");
     player.src = url;
     player.style.display="block";
+}
+
+async function generateQuiz(){
+    if(!latestNotesText) return;
+
+    const formData = new FormData();
+    formData.append("text", latestNotesText);
+
+    const res = await fetch("http://127.0.0.1:8000/generate-quiz",{
+        method:"POST",
+        body:formData
+    });
+
+    const data = await res.json();
+
+    if(data.quiz){
+        renderQuiz(data.quiz);
+    }
+}
+
+function renderQuiz(quiz){
+    const container = document.getElementById("quizSection");
+    container.innerHTML = "<h2 style='color:#38bdf8'>🧠 Quick Challenge</h2>";
+    container.style.display = "block";
+
+    quiz.forEach((q, index) => {
+        let questionHTML = `
+            <div style="margin-bottom:20px;">
+                <p><strong>Q${index+1}:</strong> ${q.question}</p>
+        `;
+
+        q.options.forEach((opt, i) => {
+            questionHTML += `
+                <label style="display:block; margin-bottom:5px;">
+                    <input type="radio" name="q${index}" value="${i}">
+                    ${opt}
+                </label>
+            `;
+        });
+
+        questionHTML += "</div>";
+        container.innerHTML += questionHTML;
+    });
+
+    container.innerHTML += `
+        <button onclick="submitQuiz()">Submit Answers</button>
+        <div id="quizResult" style="margin-top:20px;"></div>
+    `;
+
+    window.currentQuiz = quiz;
+}
+
+function submitQuiz(){
+    let score = 0;
+    const quiz = window.currentQuiz;
+
+    quiz.forEach((q, index) => {
+        const selected = document.querySelector(`input[name="q${index}"]:checked`);
+        if(selected && parseInt(selected.value) === q.answer_index){
+            score++;
+        }
+    });
+
+    const percentage = Math.round((score / quiz.length) * 100);
+
+    let message = "";
+    if(percentage >= 80){
+        message = "🔥 Brain Activated!";
+    } else if(percentage >= 50){
+        message = "👍 Not bad — review once more!";
+    } else {
+        message = "📚 Rewatch the video!";
+    }
+
+    document.getElementById("quizResult").innerHTML =
+        `<h3>Your Score: ${percentage}%</h3><p>${message}</p>`;
 }
 </script>
 
